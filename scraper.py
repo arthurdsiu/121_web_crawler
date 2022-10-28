@@ -80,7 +80,7 @@ def is_valid(url):
             return False
 
         #check if the path is a calendar because they are traps
-        if isTrap(parsed.path.lower()):
+        if isTrap(parsed):
             return False
         
         return not re.match(
@@ -98,19 +98,19 @@ def is_valid(url):
         raise
 
 #Helper Functions
-def isTrap(path):
-    #check if there is pdf in between
-    if '/pdf/' in path:
+def isTrap(parsed):
+    # #check if there is pdf in between
+    if '/pdf/' in parsed.path.lower():
         return True
 
     #check if it's in a calendar
-    if 'wics' in path and bool(re.search('/events/.*?/', path)):
+    if 'wics' in parsed.netloc.lower() and bool(re.search('/events/.*?/', parsed.path.lower())):
         return True
 
-    if 'today' in path and bool(re.search('/calendar/.*?/', path)):
+    if 'today' in parsed.netloc.lower() and bool(re.search('/calendar/.*?/', parsed.path.lower())):
         return True
 
-    # if re.match(r'\/calendar\/.+ | \/events\/.+', path) or re.match(r'.*?\/(.+?)\/.?\1.* | .*?\/(.+?)\/.?\2.*', path) or re.match(r'.*\..+\/', path):
+    # if re.match(r'\/calendar\/.+ | \/events\/.+', parsed.path.lower()) or re.match(r'.*?\/(.+?)\/.?\1.* | .*?\/(.+?)\/.?\2.*', path) or re.match(r'.*\..+\/', parsed.path.lower()):
     #     print('Path is trap:', path)
     #     return True
     return False
