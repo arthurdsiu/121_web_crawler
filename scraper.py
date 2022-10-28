@@ -6,7 +6,7 @@ from urllib.parse import urljoin
 from urllib.parse import urldefrag
 
 #q1 - unique pages
-pages = set()
+visitedPages = set()
 
 #q2 - longest page for number of words
 longestPages = ["", 0]
@@ -18,6 +18,8 @@ wordCount = dict()
 subDomainCount = dict()
 
 stopWords = {"a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "aren't", "as", "at", "be", "because", "been", "before", "being", "below", "between", "both", "but", "by", "can't", "cannot", "could", "couldn't", "did", "didn't", "do", "does", "doesn't", "doing", "don't", "down", "during", "each", "few", "for", "from", "further", "had", "hadn't", "has", "hasn't", "have", "haven't", "having", "he", "he'd", "he'll", "he's", "her", "here", "here's", "hers", "herself", "him", "himself", "his", "how", "how's", "i", "i'd", "i'll", "i'm", "i've", "if", "in", "into", "is", "isn't", "it", "it's", "its", "itself", "let's", "me", "more", "most", "mustn't", "my", "myself", "no", "nor", "not", "of", "off", "on", "once", "only", "or", "other", "ought", "our", "ours	ourselves", "out", "over", "own", "same", "shan't", "she", "she'd", "she'll", "she's", "should", "shouldn't", "so", "some", "such", "than", "that", "that's", "the", "their", "theirs", "them", "themselves", "then", "there", "there's", "these", "they", "they'd", "they'll", "they're", "they've", "this", "those", "through", "to", "too", "under", "until", "up", "very", "was", "wasn't", "we", "we'd", "we'll", "we're", "we've", "were", "weren't", "what", "what's", "when", "when's", "where", "where's", "which", "while", "who", "who's", "whom", "why", "why's", "with", "won't", "would", "wouldn't", "you", "you'd", "you'll", "you're", "you've", "your", "yours", "yourself", "yourselves"}            
+
+domains = ["ics.uci.edu", "cs.uci.edu", "informatics.uci.edu" ,"stat.uci.edu"]
 
 def scraper(url, resp):
     links = extract_next_links(url, resp)
@@ -52,12 +54,12 @@ def extract_next_links(url, resp):
         href = urldefrag(href)[0] # assume we want to remove fragments
         href = urljoin(url, href) #join for relative URLS
         parse = urlparse(href)
-        if is_valid(href) == True and href not in pages:
+        if is_valid(href) == True and href not in visitedPages:
             print("Valid url:",href, "domain:", parse.hostname, "protocol:", parse.scheme)
             ret.append(href)
-            pages.add(href)
+            visitedPages.add(href)
             print(end="")
-        elif href in pages:
+        elif href in visitedPages:
             print('Repeated URL:', href)
         else:
             print("Invalid url:",href, "domain:", parse.hostname, "protocol:", parse.scheme)
@@ -117,12 +119,11 @@ def isTrap(parsed):
 
 
 def isBadDomain(domain):
-    domains = ["ics.uci.edu", "cs.uci.edu", "informatics.uci.edu" ,"stat.uci.edu"]
     # we want to be able to check against subdomains: hentai.ics.uci.edu
     if domain is None:
         return True
     for d in domains:
-        if d in domain:
+        if re.match(r'.*'+d+'$', domain):
             return False
     print("Wrong domain:", domain)
     return True
@@ -145,7 +146,7 @@ def longestPage(soup, url):
 def dumpAnswers():
     try:
         file = open("answers.txt", "w")
-        file.write(f"Q1: Number of unique URLs: {len(pages)}\n")
+        file.write(f"Q1: Number of unique URLs: {len(visitedPages)}\n")
 
         file.write(f"Q2: Longest Page and the number of words\n")
         file.write(f'{longestPages[0]} => {longestPages[1]}\n')
