@@ -1,9 +1,6 @@
-from enum import unique
 import re
 from bs4 import BeautifulSoup
-from urllib.parse import urlparse
-from urllib.parse import urljoin
-from urllib.parse import urldefrag
+from urllib.parse import urlparse, urljoin, urldefrag, urlunparse
 
 #q1 - unique pages
 visitedPages = set()
@@ -21,6 +18,8 @@ stopWords = {"a", "about", "above", "after", "again", "against", "all", "am", "a
 
 domains = ["ics.uci.edu", "cs.uci.edu", "informatics.uci.edu" ,"stat.uci.edu"]
 
+disallowQueriesDomains = ["swiki.ics.uci.edu", "wiki.ics.uci.edu", "archive.ics.uci.edu"]
+
 def scraper(url, resp):
     links = extract_next_links(url, resp)
     dumpAnswers()
@@ -36,37 +35,41 @@ def extract_next_links(url, resp):
     #         resp.raw_response.url: the url, again
     #         resp.raw_response.content: the content of the page!
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
+    ret = list()
+    if resp.url in visitedPages:
+        return ret
     if resp.status != 200:
         print("Error in getting url, code:", resp.status)
-        return list()
+        return ret
+    if not resp.raw_response:
+        return ret
 
-    ret = list()
     soup = BeautifulSoup(resp.raw_response.content, 'html.parser')
 
     #update answers
+    visitedPages.add(resp.url)
     addTokens(soup)
-    #finish updating answers
+
+    domain = urlparse(resp.url).hostname
+    if re.match(r'.*ics.uci.edu$', domain):
+        subDomainCount[domain] = subDomainCount.get(domain, 0) + 1
+
     longestPage(soup, url)
+    #finish updating answers
 
     links =  soup.findAll("a")
     for link in links:
         href = link.get('href')
         href = urldefrag(href)[0] # assume we want to remove fragments
         href = urljoin(url, href) #join for relative URLS
-        parse = urlparse(href)
-        # if is_valid(href) == True and href not in visitedPages:
-        #     print("Valid url:",href, "domain:", parse.hostname, "protocol:", parse.scheme)
-        #     ret.append(href)
-        #     visitedPages.add(href)
-        #     print(end="")
-        # elif href in visitedPages:
-        #     print('Repeated URL:', href)
-        # else:
-        #     print("Invalid url:",href, "domain:", parse.hostname, "protocol:", parse.scheme)
+
+        # if URL is blacklisted for queries, remove query string
+        parsed = urlparse(href)
+        if parsed.hostname in disallowQueriesDomains:
+            parsed = parsed._replace(query='') #remove query string
+            href = urlunparse(parsed)
 
         ret.append(href)
-
-    
       
     return ret
 
@@ -88,17 +91,18 @@ def is_valid(url):
 
         visitedPages.add(url)
         #check if the path is a calendar because they are traps
-        if isTrap(parsed.path.lower()):
+        if isTrap(parsed):
             return False
         
         return not re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
             + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
-            + r"|ps|eps|tex|ppt|pptx|doc|docx|xls|xlsx|names"
+            + r"|ps|eps|tex|ppt|pptx|ppsx|doc|docx|xls|xlsx|names"
             + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
             + r"|epub|dll|cnf|tgz|sha1"
             + r"|thmx|mso|arff|rtf|jar|csv"
+            + r"|apk|war|img"
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower())
 
     except TypeError:
@@ -106,7 +110,11 @@ def is_valid(url):
         raise
 
 #Helper Functions
-def isTrap(path):
+def isTrap(parsed):
+    if re.match(r'.*swiki.ics.uci.edu', parsed.hostname):
+        return True
+
+    path = parsed.path.lower()
     #check if there is pdf in between
     if any(x in path for x in ['?replytocom=', '/pdf/', "#comment-", "events"]):
         return True
@@ -130,7 +138,6 @@ def isBadDomain(domain):
     for d in domains:
         if re.match(r'.*'+d+'$', domain):
             return False
-    print("Wrong domain:", domain)
     return True
 
 def addTokens(soup):
