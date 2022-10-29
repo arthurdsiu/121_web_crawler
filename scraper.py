@@ -125,14 +125,13 @@ def isTrap(parsed):
     if any(x in path for x in ['?replytocom=', '/pdf/', "#comment-"]):
         return True
 
-    #check if it's in a calendar
-    if re.match(r'\/calendar\/.+|\/events\/.+', path) or re.match(r'.*?\/(.+?)\/.?\1.* | .*?\/(.+?)\/.?\2.*', path) or re.match(r'.*\..+\/', path):
-        print('Path is trap:', path)
-        return True
-
     #avoid any directory named pix
     if (re.search('pix', path)):
         return True
+
+    # if re.match(r'\/calendar\/.+ | \/events\/.+', path) or re.match(r'.*?\/(.+?)\/.?\1.* | .*?\/(.+?)\/.?\2.*', path) or re.match(r'.*\..+\/', path):
+    #     print('Path is trap:', path)
+    #     return True
 
     #https://support.archive-it.org/hc/en-us/articles/208332963-Modify-your-crawl-scope-with-a-Regular-Expression
     if re.match(r'^.*?(/.+?/).*?\1.*$|^.*?/(.+?/)\2.*$', path):
