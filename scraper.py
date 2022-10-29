@@ -77,6 +77,9 @@ def is_valid(url):
     # Decide whether to crawl this url or not. 
     # If you decide to crawl it, return True; otherwise return False.
     # There are already some conditions that return False.
+
+    global visitedPages
+
     try:
         # https://docs.python.org/3/library/urllib.parse.html
         # scheme://netloc/path;parameters?query#fragment
