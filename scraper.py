@@ -54,15 +54,17 @@ def extract_next_links(url, resp):
         href = urldefrag(href)[0] # assume we want to remove fragments
         href = urljoin(url, href) #join for relative URLS
         parse = urlparse(href)
-        if is_valid(href) == True and href not in visitedPages:
-            print("Valid url:",href, "domain:", parse.hostname, "protocol:", parse.scheme)
-            ret.append(href)
-            visitedPages.add(href)
-            print(end="")
-        elif href in visitedPages:
-            print('Repeated URL:', href)
-        else:
-            print("Invalid url:",href, "domain:", parse.hostname, "protocol:", parse.scheme)
+        # if is_valid(href) == True and href not in visitedPages:
+        #     print("Valid url:",href, "domain:", parse.hostname, "protocol:", parse.scheme)
+        #     ret.append(href)
+        #     visitedPages.add(href)
+        #     print(end="")
+        # elif href in visitedPages:
+        #     print('Repeated URL:', href)
+        # else:
+        #     print("Invalid url:",href, "domain:", parse.hostname, "protocol:", parse.scheme)
+
+        ret.append(href)
 
     
       
@@ -76,13 +78,17 @@ def is_valid(url):
         # https://docs.python.org/3/library/urllib.parse.html
         # scheme://netloc/path;parameters?query#fragment
         parsed = urlparse(url)
-        if isBadDomain(parsed.hostname):
+        if isBadDomain(str(parsed.hostname)):
             return False
         if parsed.scheme not in set(["http", "https"]):
             return False
 
+        if url in visitedPages:
+            return False
+
+        visitedPages.add(url)
         #check if the path is a calendar because they are traps
-        if isTrap(parsed):
+        if isTrap(parsed.path.lower()):
             return False
         
         return not re.match(
@@ -100,21 +106,20 @@ def is_valid(url):
         raise
 
 #Helper Functions
-def isTrap(parsed):
-    # #check if there is pdf in between
-    if '/pdf/' in parsed.path.lower():
+def isTrap(path):
+    #check if there is pdf in between
+    if any(x in path for x in ['?replytocom=', '/pdf/', "#comment-", "events"]):
         return True
 
     #check if it's in a calendar
-    if 'wics' in parsed.netloc.lower() and bool(re.search('/events/.*?/', parsed.path.lower())):
-        return True
-
-    if 'today' in parsed.netloc.lower() and bool(re.search('/calendar/.*?/', parsed.path.lower())):
-        return True
-
-    # if re.match(r'\/calendar\/.+ | \/events\/.+', parsed.path.lower()) or re.match(r'.*?\/(.+?)\/.?\1.* | .*?\/(.+?)\/.?\2.*', path) or re.match(r'.*\..+\/', parsed.path.lower()):
-    #     print('Path is trap:', path)
+    # if 'wics' in path and bool(re.search('/events/.*?/', path)):
     #     return True
+
+    # if 'today' in path and bool(re.search('/calendar/.*?/', path)):
+    #     return True
+
+    if re.match(r'\/calendar\/.+ | \/events\/.+', path) or re.match(r'.*?\/(.+?)\/.?\1.* | .*?\/(.+?)\/.?\2.*', path) or re.match(r'.*\..+\/', path):
+        return True
     return False
 
 
