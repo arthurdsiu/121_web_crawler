@@ -36,8 +36,6 @@ def extract_next_links(url, resp):
     #         resp.raw_response.content: the content of the page!
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
     ret = list()
-    if resp.url in visitedPages:
-        return ret
     if resp.status != 200:
         print("Error in getting url, code:", resp.status)
         return ret
@@ -119,19 +117,13 @@ def isTrap(parsed):
 
     path = parsed.path.lower()
     #check if there is pdf in between
-    if any(x in path for x in ['?replytocom=', '/pdf/', "#comment-", "events"]):
+    if any(x in path for x in ['?replytocom=', '/pdf/', "#comment-"]):
         return True
 
     #check if it's in a calendar
-    # if 'wics' in path and bool(re.search('/events/.*?/', path)):
-    #     return True
-
-    # if 'today' in path and bool(re.search('/calendar/.*?/', path)):
-    #     return True
-
-    # if re.match(r'\/calendar\/.+ | \/events\/.+', path) or re.match(r'.*?\/(.+?)\/.?\1.* | .*?\/(.+?)\/.?\2.*', path) or re.match(r'.*\..+\/', path):
-    #     print('Path is trap:', path)
-    #     return True
+    if re.match(r'\/calendar\/.+|\/events\/.+', path) or re.match(r'.*?\/(.+?)\/.?\1.* | .*?\/(.+?)\/.?\2.*', path) or re.match(r'.*\..+\/', path):
+        print('Path is trap:', path)
+        return True
 
     #https://support.archive-it.org/hc/en-us/articles/208332963-Modify-your-crawl-scope-with-a-Regular-Expression
     if re.match(r'^.*?(/.+?/).*?\1.*$|^.*?/(.+?/)\2.*$', path):
