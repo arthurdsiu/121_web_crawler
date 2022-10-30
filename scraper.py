@@ -105,7 +105,7 @@ def is_valid(url):
 
         #avoid any directory named pix in path
         if (re.search('pix', parsed.path)):
-            return True
+            return False
         
         invalidPattern = re.compile(r".*\.(css|js|bmp|gif|jpe?g|ico"
         + r"|png|tiff?|mid|mp2|mp3|mp4"
