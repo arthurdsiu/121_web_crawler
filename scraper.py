@@ -29,6 +29,8 @@ def scraper(url, resp):
     return [link for link in links if is_valid(link)]
 
 def extract_next_links(url, resp):
+    if not is_valid(url):   #this is useful if the frontier was corrupted
+        return list()       #with invalid urls
     global visitedPages
     # Implementation required.
     # url: the URL that was used to get the page
@@ -100,6 +102,10 @@ def is_valid(url):
         #check if the path is a calendar because they are traps
         if isTrap(parsed):
             return False
+
+        #avoid any directory named pix in path
+        if (re.search('pix', parsed.path)):
+            return True
         
         invalidPattern = re.compile(r".*\.(css|js|bmp|gif|jpe?g|ico"
         + r"|png|tiff?|mid|mp2|mp3|mp4"
