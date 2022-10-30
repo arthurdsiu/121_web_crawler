@@ -196,7 +196,6 @@ def dumpAnswers():
         d['subDomainCount'] = subDomainCount
         d['visitedPages'] = visitedPages
         d.close()
-        print("Saved to shelve visited pages:", len(visitedPages))
 
     except Exception as e:
         print(f"Error writing output: {e}\n")
@@ -210,6 +209,5 @@ def loadGlobals(name):
             wordCount = d['wordCount']
             subDomainCount =  d['subDomainCount']
             visitedPages = d['visitedPages']
-            print("Loaded shelve with visited pages: ", len(visitedPages))
         finally:
             d.close()
