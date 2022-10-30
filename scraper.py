@@ -26,6 +26,7 @@ def scraper(url, resp):
     return [link for link in links if is_valid(link)]
 
 def extract_next_links(url, resp):
+    global visitedPages
     # Implementation required.
     # url: the URL that was used to get the page
     # resp.url: the actual url of the page
@@ -36,6 +37,8 @@ def extract_next_links(url, resp):
     #         resp.raw_response.content: the content of the page!
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
     ret = list()
+    if resp.url in visitedPages:
+        return ret
     if resp.status != 200:
         print("Error in getting url, code:", resp.status)
         return ret
@@ -95,17 +98,19 @@ def is_valid(url):
         if isTrap(parsed):
             return False
         
-        return not re.match(
-            r".*\.(css|js|bmp|gif|jpe?g|ico"
-            + r"|png|tiff?|mid|mp2|mp3|mp4|mpg"
-            + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
-            + r"|ps|eps|tex|ppt|pptx|ppsx|doc|docx|xls|xlsx|names"
-            + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
-            + r"|epub|dll|cnf|tgz|sha1"
-            + r"|thmx|mso|arff|rtf|jar|csv"
-            + r"|apk|war|img|txt"
-            + r"|shar|h|cpp|c|cp|makefile|py"
-            + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower())
+        invalidPattern = re.compile(r".*\.(css|js|bmp|gif|jpe?g|ico"
+        + r"|png|tiff?|mid|mp2|mp3|mp4|mpg"
+        + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
+        + r"|ps|eps|tex|ppt|pptx|ppsx|doc|docx|xls|xlsx|names"
+        + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
+        + r"|epub|dll|cnf|tgz|sha1"
+        + r"|thmx|mso|arff|rtf|jar|csv"
+        + r"|apk|war|img|txt"
+        + r"|shar|h|cpp|c|cp|makefile|py"
+        + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$")
+        
+        return not re.match(invalidPattern, parsed.path.lower()) and not any(re.match(invalidPattern, x) for x in parsed.query.lower().split('&'))
+        
 
     except TypeError:
         print ("TypeError for ", parsed)
@@ -113,7 +118,8 @@ def is_valid(url):
 
 #Helper Functions
 def isTrap(parsed):
-    if re.match(r'.*swiki.ics.uci.edu', parsed.hostname):
+    query = parsed.query
+    if any(x in query for x in ["zip", "pdf", "csv"]): #may need to add more
         return True
 
     path = parsed.path.lower()
