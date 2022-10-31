@@ -3,6 +3,7 @@ from imp import lock_held
 import os
 import shelve
 import re
+import time
 from threading import Thread, RLock
 from queue import Queue, Empty
 from urllib.parse import urlparse
@@ -22,11 +23,10 @@ class Frontier(object):
         self.logger = get_logger("FRONTIER")
         self.config = config
         self.to_be_downloaded= list()
-        self.n = len(scraper.domains)
-        self.saveLock = RLock()
-
         for i in range(self.n):
             self.to_be_downloaded.append(safeDequeue(scraper.domains[i]))
+        self.n = len(scraper.domains)
+        self.saveLock = RLock()
         
         if not os.path.exists(self.config.save_file) and not restart:
             # Save file does not exist, but request to load save.
@@ -44,7 +44,7 @@ class Frontier(object):
             for url in self.config.seed_urls:
                 self.add_url(url)
         else:
-            # Set the frontier state with contents of save file.
+            # Set the frontier state with contents- of save file.
             self._parse_save_file()
             if not self.save:
                 for url in self.config.seed_urls:
@@ -68,7 +68,7 @@ class Frontier(object):
                 if self.to_be_downloaded[i].rl.acquire(blocking=False) is True:
                     ret = self.to_be_downloaded[i].dq.pop()
                     self.to_be_downloaded[i].rl.release()
-                    return ret
+                    time.sleep(self.config.time_delay)
             self.to_be_downloaded[self.n-1].rl.acquire()
             ret = self.to_be_downloaded[self.n-1].dq.pop()
             self.to_be_downloaded[self.n-1].rl.release()
