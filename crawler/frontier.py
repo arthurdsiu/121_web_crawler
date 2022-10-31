@@ -64,20 +64,27 @@ class Frontier(object):
         self.logger.info(
             f"Found {tbd_count} urls to be downloaded from {total_count} "
             f"total urls discovered.")
+
     #thread safe
     def get_tbd_url(self):
         try:
-            self.logger.info("popping url")
+            #self.logger.info("popping url")
             for i in range(self.n-1):
-                if self.to_be_downloaded[i].rl.acquire(blocking=False) is True:
+                #self.logger.info(f"Queue: {i}")
+                if self.to_be_downloaded[i].rl.acquire(blocking=False):
                     ret = self.to_be_downloaded[i].dq.pop()
-                    self.logger.info(f"popping {ret} from queue {i}")
-                    self.to_be_downloaded[i].rl.release()
+                    #self.logger.info(f"popping {ret} from queue {i} with len {len(self.to_be_downloaded[i].dq)}")
                     time.sleep(self.config.time_delay)
+                    self.to_be_downloaded[i].rl.release()
+                    return ret
+                    
             self.to_be_downloaded[self.n-1].rl.acquire()
             ret = self.to_be_downloaded[self.n-1].dq.pop()
-            self.logger.info(f"popping {ret} from queue {self.n-1}")
+            #self.logger.info(f"popping {ret} from queue {self.n-1} with len {len(self.to_be_downloaded[self.n-1].dq)}")
+            time.sleep(self.config.time_delay)
             self.to_be_downloaded[self.n-1].rl.release()
+           
+            self.logger.info("Returning")
             return ret
         except IndexError:
             return None
@@ -92,10 +99,11 @@ class Frontier(object):
             self.saveLock.release()
 
             domain = urlparse(url).hostname
-            for i in range(self.n-1):
-                if re.search(r'.*' + self.to_be_downloaded[i].key +'$', domain):
+            for i in range(self.n):
+                if re.search(r'.*\.' + self.to_be_downloaded[i].key +'$', domain):
                     self.to_be_downloaded[i].rl.acquire()
                     self.to_be_downloaded[i].dq.append(url)
+                    #self.logger.info(f"Added url {url} in queue {self.to_be_downloaded[i].key} with length {len(self.to_be_downloaded[i].dq)}")
                     self.to_be_downloaded[i].rl.release()
                 
     def mark_url_complete(self, url):

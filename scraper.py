@@ -1,11 +1,8 @@
-from hashlib import shake_128
-from logging import LoggerAdapter
 import re
 import shelve
 import os
 import sys
 
-from click import NoSuchOption
 from utils import get_logger, get_urlhash
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse, urljoin, urldefrag, urlunparse
@@ -48,6 +45,7 @@ def extract_next_links(url, resp):
     global save2
     global save3
     global save4
+    global noShelve
     # Implementation required.
     # url: the URL that was used to get the page
     # resp.url: the actual url of the page
@@ -69,12 +67,13 @@ def extract_next_links(url, resp):
     soup = BeautifulSoup(resp.raw_response.content, 'html.parser')
 
     #update answers
+    answerLock.acquire()
     if noShelve:
         save1 = shelve.open(sn1, writeback=True)
         save2 = shelve.open(sn2, writeback=True)
         save3 = shelve.open(sn3, writeback=True)
         save4 = shelve.open(sn4, writeback=True)
-    answerLock.acquire()
+        noShelve = False
     visitedPages.add(resp.url)
     urlhash = get_urlhash(resp.url)
     save1[urlhash] = url
@@ -110,8 +109,9 @@ def extract_next_links(url, resp):
             href = urlunparse(parsed)
         # if a component was found that already exists, the whole page is likely a trap
         # do not crawl further
-        if isTrap(parsed):
-            return list()
+        #if isTrap(parsed):
+        #    print("Potential trap found")
+        #    return list()
         ret.append(href)
         
       
@@ -172,8 +172,8 @@ def isTrap(parsed):
         return True
 
     #avoid anything links that link after .php
-    if re.search(r"\.php\/", path):
-        return True
+    #if re.search(r"\.php\/", path):
+    #    return True
 
     #check if it's in a calendar
     # if 'wics' in path and bool(re.search('/events/.*?/', path)):
