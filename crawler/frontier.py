@@ -1,4 +1,5 @@
 from collections import deque
+from imp import lock_held
 import os
 import shelve
 
@@ -8,6 +9,8 @@ from queue import Queue, Empty
 from utils import get_logger, get_urlhash, normalize
 from scraper import is_valid
 
+class safeDequeue:
+    Rlock lock
 class Frontier(object):
     def __init__(self, config, restart):
         self.logger = get_logger("FRONTIER")
