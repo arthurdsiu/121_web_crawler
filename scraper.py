@@ -1,9 +1,10 @@
+from hashlib import shake_128
 from logging import LoggerAdapter
 import re
 import shelve
 import os
 import sys
-from utils import get_logger
+from utils import get_logger, get_urlhash
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse, urljoin, urldefrag, urlunparse
 
@@ -25,6 +26,10 @@ domains = ["ics\.uci\.edu", "cs\.uci\.edu", "informatics\.uci\.edu" ,"stat\.uci\
 
 disallowQueriesDomains = ["swiki.ics.uci.edu", "wiki.ics.uci.edu", "archive.ics.uci.edu", "cbcl.ics.uci.edu"]
 shelveName = 'ans.shelve'
+sn1 = 'visitedPages.shelve'
+sn2 = 'longestPages.shelve'
+sn3 = 'wordCount.shelve'
+sn4 = 'subDomainCount.shelve'
 
 def scraper(url, resp):
     links = extract_next_links(url, resp)
@@ -34,6 +39,10 @@ def extract_next_links(url, resp):
     if not is_valid(url):   #this is useful if the frontier was corrupted
         return list()       #with invalid urls
     global visitedPages
+    global save1
+    global save2
+    global save3
+    global save4
     # Implementation required.
     # url: the URL that was used to get the page
     # resp.url: the actual url of the page
@@ -56,11 +65,23 @@ def extract_next_links(url, resp):
 
     #update answers
     visitedPages.add(resp.url)
+    urlhash = get_urlhash(resp.url)
+    save1[urlhash] = url
+    save1.sync()
+    
+    longestPage(soup, url)
+    save2[sn2] = longestPages
+    save2.sync()
+
     addTokens(soup)
+    #sync performed in function already
+
     domain = urlparse(resp.url).hostname
     if re.match(r'.*\.ics\.uci\.edu$', domain):
         subDomainCount[domain] = subDomainCount.get(domain, 0) + 1
-    longestPage(soup, url)
+        save4[domain] = subDomainCount[domain]
+        save4.sync()
+
     dumpAnswers()
     #finish updating answers
 
@@ -161,12 +182,15 @@ def isBadDomain(domain):
     return True
 
 def addTokens(soup):
+    global save3
     tokenList = re.split("[^a-zA-Z0-9]",soup.get_text())
     # remove empty strings and stopWords
     tokenList = list(filter(lambda str: len(str) > 1 and str not in stopWords, tokenList))
     for i in range(len(tokenList)):
         token = tokenList[i]
         wordCount[token] = wordCount.get(token, 0) + 1
+        save3[token] = wordCount[token]
+        save3.sync()
 
 def longestPage(soup, url):
     tokenList = re.split("[^a-zA-Z0-9]",soup.get_text())
@@ -193,17 +217,8 @@ def dumpAnswers():
         file.write("\nQ4: List of subdomain and page per subdomain\n")
         for k,v in sorted(subDomainCount.items(), key=lambda x: x[0]):
             file.write(f"{k} : {v}\n")
-        # JANK AF FIX
-        # https://stackoverflow.com/questions/71617038/python-shelf-file-grows-when-trying-to-overwrite-data    
-        
-        d = shelve.open(shelveName)
-        print("List of keys", list(d.keys()))
-        d['longestPages'] = longestPages
-        d['wordCount'] = wordCount
-        d['subDomainCount'] = subDomainCount
-        d['visitedPages'] = visitedPages
+
         logger.info(f"Saving answers shelve with visited pages of length {len(visitedPages)}")
-        d.close()
 
     except Exception as e:
         print(f"Error writing output: {e}\n")
@@ -211,6 +226,10 @@ def dumpAnswers():
 def loadGlobals(name):
     logger = get_logger("SCRAPER")
     logger.info("Logger called for opening answers shelve") 
+    global save1
+    global save2
+    global save3
+    global save4
     if os.path.exists(name):
         global longestPages, wordCount, subDomainCount, visitedPages
         try:
@@ -219,11 +238,48 @@ def loadGlobals(name):
             wordCount = d['wordCount']
             subDomainCount =  d['subDomainCount']
             visitedPages = d['visitedPages']
-            os.remove(name)
             logger.info(f"Shelve file found, visited Page len = {len(visitedPages)}") 
             logger.info(f"Size of 4 objects: \nLongestPages:{sys.getsizeof(longestPages)}\nWordCount:{sys.getsizeof(wordCount)}\nSubDomainCount:{sys.getsizeof(subDomainCount)}\nvisitedPages:{sys.getsizeof(visitedPages)} ")
+            save1 = shelve.open(sn1, writeback=True)
+            save2 = shelve.open(sn2, writeback=True)
+            save3 = shelve.open(sn3, writeback=True)
+            save4 = shelve.open(sn4, writeback=True)
+            
+            for url in visitedPages:
+                urlhash = get_urlhash(url)
+                save1[urlhash] = url
+            save1.sync()
+
+            save2[sn2]=longestPages
+            save2.sync()
+            
+            for k,v in wordCount.items():
+                save3[k]=v
+            save3.sync()
+            
+            for k,v in subDomainCount.items():
+                save4[k]=v
+            save4.sync()
+
+
         finally:
             d.close()
+            os.remove(name)
+            
     else:
-       logger.info("Shelve file not found; variables will be set to 0") 
-        
+        logger.info("Shelve file not found; checking for 2nd version")
+        if os.path.exists(sn1) and os.path.exists(sn2) and os.path.exists(sn3) and os.path.exists(sn4):
+            logger.info("Shelve file ver 2 found. Loading values")
+            save1 = shelve.open(sn1)
+            for v in save1.values():
+                visitedPages.add(v)
+            save2 = shelve.open(sn2)
+            longestPages = save2[sn2]
+            save3 = shelve.open(sn3)
+            for k,v in save3.items():
+                wordCount[k] = v 
+            save4 = shelve.open(sn4)
+            for k,v in save4.items():
+                subDomainCount[k] = v
+        else:
+            logger.info("No shelves found, globals init to 0")
