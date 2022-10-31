@@ -134,6 +134,7 @@ def is_valid(url):
         if parsed.hostname in disallowQueriesDomains and parsed.query != '':
             return False
         #end temp for debugging
+
         if url in visitedPages:
             return False
 
@@ -145,6 +146,13 @@ def is_valid(url):
         if (re.search('pix', parsed.path)):
             return False
         
+        #ignore ics trap computing
+        if (re.search(r'ics.uci.edu.*computing', url) ):
+            return False
+        #ignore anything adding paths after index.php
+        if (re.search(r'index.php\/',url)):
+            return False
+
         invalidPattern = re.compile(r".*\.(css|js|bmp|gif|jpe?g|ico"
         + r"|png|tiff?|mid|mp2|mp3|mp4"
         + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
