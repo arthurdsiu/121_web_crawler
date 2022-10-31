@@ -59,7 +59,13 @@ class Frontier(object):
         tbd_count = 0
         for url, completed in self.save.values():
             if not completed and scraper.is_valid(url):
-                self.to_be_downloaded.append(url)
+                domain = urlparse(url).hostname
+                for i in range(self.n):
+                    if re.search(r'.*\.' + self.to_be_downloaded[i].key +'$', domain):
+                        self.to_be_downloaded[i].rl.acquire()
+                        self.to_be_downloaded[i].dq.append(url)
+                        #self.logger.info(f"Added url {url} in queue {self.to_be_downloaded[i].key} with length {len(self.to_be_downloaded[i].dq)}")
+                        self.to_be_downloaded[i].rl.release()
                 tbd_count += 1
         self.logger.info(
             f"Found {tbd_count} urls to be downloaded from {total_count} "
@@ -72,19 +78,25 @@ class Frontier(object):
             for i in range(self.n-1):
                 #self.logger.info(f"Queue: {i}")
                 if self.to_be_downloaded[i].rl.acquire(blocking=False):
+                    if not self.to_be_downloaded[i].dq:
+                        self.to_be_downloaded[i].rl.release()
+                        continue
                     ret = self.to_be_downloaded[i].dq.pop()
                     #self.logger.info(f"popping {ret} from queue {i} with len {len(self.to_be_downloaded[i].dq)}")
                     time.sleep(self.config.time_delay)
                     self.to_be_downloaded[i].rl.release()
                     return ret
-                    
             self.to_be_downloaded[self.n-1].rl.acquire()
+            #self.logger.info(f"Queue: {self.n-1}") 
+            if not self.to_be_downloaded[self.n-1].dq:
+                self.to_be_downloaded[self.n-1].rl.release()
+                
             ret = self.to_be_downloaded[self.n-1].dq.pop()
             #self.logger.info(f"popping {ret} from queue {self.n-1} with len {len(self.to_be_downloaded[self.n-1].dq)}")
             time.sleep(self.config.time_delay)
             self.to_be_downloaded[self.n-1].rl.release()
            
-            self.logger.info("Returning")
+            #self.logger.info("Returning")
             return ret
         except IndexError:
             return None
