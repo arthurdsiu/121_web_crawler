@@ -7,15 +7,23 @@ from threading import Thread, RLock
 from queue import Queue, Empty
 
 from utils import get_logger, get_urlhash, normalize
-from scraper import is_valid
+import scraper
 
 class safeDequeue:
-    Rlock lock
+    def __init__(self, key):
+        self.key = key
+        self.rl = RLock()
+        self.dq = deque()
+        self.n = 0
+
 class Frontier(object):
     def __init__(self, config, restart):
         self.logger = get_logger("FRONTIER")
         self.config = config
-        self.to_be_downloaded = deque()
+        self.to_be_downloaded= list()
+        self.n = len(scraper.domains)
+        for i in range(self.n):
+            self.to_be_downloaded.append(safeDequeue(scraper.domains[i]))
         
         if not os.path.exists(self.config.save_file) and not restart:
             # Save file does not exist, but request to load save.
@@ -44,7 +52,7 @@ class Frontier(object):
         total_count = len(self.save)
         tbd_count = 0
         for url, completed in self.save.values():
-            if not completed and is_valid(url):
+            if not completed and scraper.is_valid(url):
                 self.to_be_downloaded.append(url)
                 tbd_count += 1
         self.logger.info(
@@ -53,7 +61,15 @@ class Frontier(object):
 
     def get_tbd_url(self):
         try:
-            return self.to_be_downloaded.pop()
+            for i in range(self.n-1):
+                if self.to_be_downloaded[i].rl.acquire(blocking=False) is True:
+                    ret = self.to_be_downloaded[i].dq.pop()
+                    self.to_be_downloaded[i].rl.release()
+                    return ret
+            self.to_be_downloaded[self.n-1].rl.acquire()
+            ret = self.to_be_downloaded[self.n-1].dq.pop()
+            self.to_be_downloaded[self.n-1].rl.release()
+            return ret
         except IndexError:
             return None
 
