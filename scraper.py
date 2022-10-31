@@ -147,7 +147,7 @@ def is_valid(url):
             return False
         
         #ignore ics trap computing
-        if (re.search(r'ics.uci.edu.*computing', url) ):
+        if re.search(r'ics\.uci\.edu\/+(grad|ugrad|honors)', url):
             return False
         #ignore anything adding paths after index.php
         if (re.search(r'index.php\/',url)):
