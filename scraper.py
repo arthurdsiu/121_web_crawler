@@ -4,9 +4,12 @@ import re
 import shelve
 import os
 import sys
+
+from click import NoSuchOption
 from utils import get_logger, get_urlhash
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse, urljoin, urldefrag, urlunparse
+from threading import RLock
 
 #q1 - unique pages
 visitedPages = set()
@@ -30,6 +33,8 @@ sn1 = 'visitedPages.shelve'
 sn2 = 'longestPages.shelve'
 sn3 = 'wordCount.shelve'
 sn4 = 'subDomainCount.shelve'
+answerLock = RLock()
+noShelve = False
 
 def scraper(url, resp):
     links = extract_next_links(url, resp)
@@ -64,6 +69,12 @@ def extract_next_links(url, resp):
     soup = BeautifulSoup(resp.raw_response.content, 'html.parser')
 
     #update answers
+    if noShelve:
+        save1 = shelve.open(sn1, writeback=True)
+        save2 = shelve.open(sn2, writeback=True)
+        save3 = shelve.open(sn3, writeback=True)
+        save4 = shelve.open(sn4, writeback=True)
+    answerLock.acquire()
     visitedPages.add(resp.url)
     urlhash = get_urlhash(resp.url)
     save1[urlhash] = url
@@ -83,6 +94,7 @@ def extract_next_links(url, resp):
         save4.sync()
 
     dumpAnswers()
+    answerLock.release()
     #finish updating answers
 
     links =  soup.findAll("a")
@@ -238,6 +250,7 @@ def loadGlobals(name):
     global save2
     global save3
     global save4
+    global noShelve
     if os.path.exists(name):
         global longestPages, wordCount, subDomainCount, visitedPages
         try:
@@ -252,7 +265,6 @@ def loadGlobals(name):
             save2 = shelve.open(sn2, writeback=True)
             save3 = shelve.open(sn3, writeback=True)
             save4 = shelve.open(sn4, writeback=True)
-            
             for url in visitedPages:
                 urlhash = get_urlhash(url)
                 save1[urlhash] = url
@@ -291,7 +303,4 @@ def loadGlobals(name):
                 subDomainCount[k] = v
         else:
             logger.info("No shelves found, globals init to 0")
-            save1 = shelve.open(sn1, writeback=True)
-            save2 = shelve.open(sn2, writeback=True)
-            save3 = shelve.open(sn3, writeback=True)
-            save4 = shelve.open(sn4, writeback=True)
+            noShelve = True

@@ -23,10 +23,13 @@ class Frontier(object):
         self.logger = get_logger("FRONTIER")
         self.config = config
         self.to_be_downloaded= list()
+        self.n = len(scraper.domains)
         for i in range(self.n):
             self.to_be_downloaded.append(safeDequeue(scraper.domains[i]))
-        self.n = len(scraper.domains)
         self.saveLock = RLock()
+        self.logger.info(f"Created multiple dequeue")
+        for i in range(self.n):
+            self.logger.info(f"Key:{self.to_be_downloaded[i].key}")
         
         if not os.path.exists(self.config.save_file) and not restart:
             # Save file does not exist, but request to load save.
@@ -64,13 +67,16 @@ class Frontier(object):
     #thread safe
     def get_tbd_url(self):
         try:
+            self.logger.info("popping url")
             for i in range(self.n-1):
                 if self.to_be_downloaded[i].rl.acquire(blocking=False) is True:
                     ret = self.to_be_downloaded[i].dq.pop()
+                    self.logger.info(f"popping {ret} from queue {i}")
                     self.to_be_downloaded[i].rl.release()
                     time.sleep(self.config.time_delay)
             self.to_be_downloaded[self.n-1].rl.acquire()
             ret = self.to_be_downloaded[self.n-1].dq.pop()
+            self.logger.info(f"popping {ret} from queue {self.n-1}")
             self.to_be_downloaded[self.n-1].rl.release()
             return ret
         except IndexError:
@@ -87,7 +93,7 @@ class Frontier(object):
 
             domain = urlparse(url).hostname
             for i in range(self.n-1):
-                if re.match(r'.*' + self.to_be_downloaded[i].key +'$', domain):
+                if re.search(r'.*' + self.to_be_downloaded[i].key +'$', domain):
                     self.to_be_downloaded[i].rl.acquire()
                     self.to_be_downloaded[i].dq.append(url)
                     self.to_be_downloaded[i].rl.release()
