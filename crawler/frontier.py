@@ -2,9 +2,10 @@ from collections import deque
 from imp import lock_held
 import os
 import shelve
-
+import re
 from threading import Thread, RLock
 from queue import Queue, Empty
+from urllib.parse import urlparse
 
 from utils import get_logger, get_urlhash, normalize
 import scraper
@@ -14,14 +15,16 @@ class safeDequeue:
         self.key = key
         self.rl = RLock()
         self.dq = deque()
-        self.n = 0
 
 class Frontier(object):
+    #not thread safe, but should be fine
     def __init__(self, config, restart):
         self.logger = get_logger("FRONTIER")
         self.config = config
         self.to_be_downloaded= list()
         self.n = len(scraper.domains)
+        self.saveLock = RLock()
+
         for i in range(self.n):
             self.to_be_downloaded.append(safeDequeue(scraper.domains[i]))
         
@@ -58,7 +61,7 @@ class Frontier(object):
         self.logger.info(
             f"Found {tbd_count} urls to be downloaded from {total_count} "
             f"total urls discovered.")
-
+    #thread safe
     def get_tbd_url(self):
         try:
             for i in range(self.n-1):
@@ -77,16 +80,25 @@ class Frontier(object):
         url = normalize(url)
         urlhash = get_urlhash(url)
         if urlhash not in self.save:
+            self.saveLock.acquire()
             self.save[urlhash] = (url, False)
             self.save.sync()
-            self.to_be_downloaded.append(url)
-    
+            self.saveLock.release()
+
+            domain = urlparse(url).hostname
+            for i in range(self.n-1):
+                if re.match(r'.*' + self.to_be_downloaded[i].key +'$', domain):
+                    self.to_be_downloaded[i].rl.acquire()
+                    self.to_be_downloaded[i].dq.append(url)
+                    self.to_be_downloaded[i].rl.release()
+                
     def mark_url_complete(self, url):
         urlhash = get_urlhash(url)
         if urlhash not in self.save:
             # This should not happen.
             self.logger.error(
                 f"Completed url {url}, but have not seen it before.")
-
+        self.saveLock.acquire()
         self.save[urlhash] = (url, True)
         self.save.sync()
+        self.saveLock.release()
