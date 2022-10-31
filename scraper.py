@@ -89,15 +89,19 @@ def extract_next_links(url, resp):
     for link in links:
         href = link.get('href')
         href = urldefrag(href)[0] # assume we want to remove fragments
-        href = urljoin(url, href) #join for relative URLS
 
+        href = urljoin(url, href) #join for relative URLS
         # if URL is blacklisted for queries, remove query string
         parsed = urlparse(href)
         if parsed.hostname in disallowQueriesDomains:
             parsed = parsed._replace(query='') #remove query string
             href = urlunparse(parsed)
-
+        # if a component was found that already exists, the whole page is likely a trap
+        # do not crawl further
+        if isTrap(parsed):
+            return list()
         ret.append(href)
+        
       
     return ret
 
@@ -153,6 +157,10 @@ def isTrap(parsed):
     path = parsed.path.lower()
     #check if there is pdf in between
     if any(x in path for x in ['?replytocom=', '/pdf/', "#comment-", "events"]):
+        return True
+
+    #avoid anything links that link after .php
+    if re.search(r"\.php\/", path):
         return True
 
     #check if it's in a calendar
@@ -270,16 +278,20 @@ def loadGlobals(name):
         logger.info("Shelve file not found; checking for 2nd version")
         if os.path.exists(sn1) and os.path.exists(sn2) and os.path.exists(sn3) and os.path.exists(sn4):
             logger.info("Shelve file ver 2 found. Loading values")
-            save1 = shelve.open(sn1)
+            save1 = shelve.open(sn1, writeback=True)
             for v in save1.values():
                 visitedPages.add(v)
-            save2 = shelve.open(sn2)
+            save2 = shelve.open(sn2, writeback=True)
             longestPages = save2[sn2]
-            save3 = shelve.open(sn3)
+            save3 = shelve.open(sn3, writeback=True)
             for k,v in save3.items():
                 wordCount[k] = v 
-            save4 = shelve.open(sn4)
+            save4 = shelve.open(sn4, writeback=True)
             for k,v in save4.items():
                 subDomainCount[k] = v
         else:
             logger.info("No shelves found, globals init to 0")
+            save1 = shelve.open(sn1, writeback=True)
+            save2 = shelve.open(sn2, writeback=True)
+            save3 = shelve.open(sn3, writeback=True)
+            save4 = shelve.open(sn4, writeback=True)
