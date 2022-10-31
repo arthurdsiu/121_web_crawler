@@ -218,7 +218,7 @@ def addTokens(soup):
     # remove empty strings and stopWords
     tokenList = list(filter(lambda str: len(str) > 1 and str not in stopWords, tokenList))
     for i in range(len(tokenList)):
-        token = tokenList[i]
+        token = tokenList[i].lower()
         wordCount[token] = wordCount.get(token, 0) + 1
         save3[token] = wordCount[token]
         save3.sync()
