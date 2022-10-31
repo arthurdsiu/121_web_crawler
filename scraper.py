@@ -1,6 +1,8 @@
+from logging import LoggerAdapter
 import re
 import shelve
 import os
+from utils import get_logger
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse, urljoin, urldefrag, urlunparse
 
@@ -53,7 +55,6 @@ def extract_next_links(url, resp):
     soup = BeautifulSoup(resp.raw_response.content, 'html.parser')
 
     #update answers
-    loadGlobals(shelveName)
     visitedPages.add(resp.url)
     addTokens(soup)
 
@@ -199,6 +200,8 @@ def dumpAnswers():
         print(f"Error writing output: {e}\n")
 
 def loadGlobals(name):
+    logger = get_logger("SCRAPER")
+    logger.info("Logger called") 
     if os.path.exists(name):
         global longestPages, wordCount, subDomainCount, visitedPages
         try:
@@ -207,5 +210,9 @@ def loadGlobals(name):
             wordCount = d['wordCount']
             subDomainCount =  d['subDomainCount']
             visitedPages = d['visitedPages']
+            logger.info(f"Shelve file found, visited Page len = {len(visitedPages)}") 
         finally:
             d.close()
+    else:
+       logger.info("Shelve file not found; variables will be set to 0") 
+        
