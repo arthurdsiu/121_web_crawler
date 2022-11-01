@@ -64,6 +64,8 @@ def extract_next_links(url, resp):
         return ret
     if not resp.raw_response:
         return ret
+    if resp.headers['Content-Type'] == 'application/pdf':
+        return list()
 
     soup = BeautifulSoup(resp.raw_response.content, 'html.parser')
 
