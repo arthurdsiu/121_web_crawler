@@ -1,3 +1,4 @@
+from cgitb import html
 import re
 import shelve
 import os
@@ -142,8 +143,8 @@ def is_valid(url):
         if isTrap(parsed):
             return False
 
-        #avoid any directory named pix in path
-        if (re.search('pix', parsed.path)):
+        #avoid any directory named pix or figs in path
+        if (re.search(r'(pix|figs)', parsed.path)):
             return False
         
         #ignore ics trap computing
@@ -155,11 +156,11 @@ def is_valid(url):
         #ignore anything adding paths after index.php
         if (re.search(r'index.php\/',url)):
             return False
-
+            
         invalidPattern = re.compile(r".*\.(css|js|bmp|gif|jpe?g|ico"
         + r"|png|tiff?|mid|mp2|mp3|mp4"
         + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
-        + r"|mpg"
+        + r"|mpg|bam"
         + r"|ps|eps|tex|ppt|pptx|ppsx|doc|docx|xls|xlsx|names"
         + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
         + r"|epub|dll|cnf|tgz|sha1"
@@ -181,10 +182,6 @@ def isTrap(parsed):
     #check if there is pdf in between
     if any(x in path for x in ['?replytocom=', '/pdf/', "#comment-", "events"]):
         return True
-
-    #avoid anything links that link after .php
-    #if re.search(r"\.php\/", path):
-    #    return True
 
     #check if it's in a calendar
     # if 'wics' in path and bool(re.search('/events/.*?/', path)):
