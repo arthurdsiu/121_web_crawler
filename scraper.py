@@ -66,7 +66,7 @@ def extract_next_links(url, resp):
         return ret
     try:
         if resp.raw_response.headers and 'content-type' in resp.raw_response.headers:
-            if resp.raw_response.headers.get('content-type','text/html; charset=utf-8') == 'application/pdf':
+            if resp.raw_response.headers.get('content-type','text/html; charset=utf-8') != 'text/html':
                 return list()
     except:
         print("Exception during header access")
