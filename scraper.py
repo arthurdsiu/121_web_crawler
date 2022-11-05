@@ -64,9 +64,12 @@ def extract_next_links(url, resp):
         return ret
     if not resp.raw_response:
         return ret
-    if resp.raw_response.headers['Content-Type'] == 'application/pdf':
-        return list()
-
+    try:
+        if resp.raw_response.headers and 'content-type' in resp.raw_response.headers:
+            if resp.raw_response.headers.get('content-type','text/html; charset=utf-8') == 'application/pdf':
+                return list()
+    except:
+        print("Exception during header access")
     soup = BeautifulSoup(resp.raw_response.content, 'html.parser')
 
     #update answers
